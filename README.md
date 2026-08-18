@@ -20,3 +20,7 @@ docker compose up --build
 ## Frontier
 
 Managed with Frontier push (git frontier gate + OWASP policy V).
+
+
+Used with Frontier Push MCP v0.1.0-alpha.2 (plan/apply/push).
+
