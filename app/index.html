@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tasks</title>
+  <link rel="stylesheet" href="/shared/waka-common.css">
+  <style>
+    body { background: #0f1115; color: #e6e6e6; font-family: system-ui, -apple-system, sans-serif; margin:0; padding:0; }
+    .header {
+      display: flex; align-items: center; gap: 16px;
+      padding: 16px 24px; background: #161a21; border-bottom: 1px solid #222;
+    }
+    .header h1 { margin:0; font-size: 22px; font-weight: 600; }
+    .search {
+      flex: 1; max-width: 320px;
+      padding: 8px 14px; border-radius: 999px; border: 1px solid #333;
+      background: #1c2129; color: #fff; font-size: 14px;
+    }
+    .stats { color:#888; font-size:13px; margin-left:auto; }
+
+    .container { padding: 20px; max-width: 900px; margin: 0 auto; }
+
+    .add-form {
+      display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;
+    }
+    .add-form input, .add-form textarea {
+      background: #1c2129; border: 1px solid #333; color: #eee;
+      padding: 8px 10px; border-radius: 6px; font-size: 14px;
+    }
+    .add-form input { flex: 1; min-width: 180px; }
+    .add-form input[type=date] { width: 140px; }
+    .add-form textarea { flex: 2; min-width: 200px; resize: vertical; min-height: 36px; }
+    .add-form button {
+      background: #3a6; color: white; border: none; padding: 0 16px; border-radius: 6px; cursor: pointer;
+    }
+    .add-form button:hover { background: #4b7; }
+
+    .task {
+      background: #1a1f28;
+      border: 1px solid #222;
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 8px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .task.completed { opacity: 0.65; text-decoration: line-through; }
+    .task input[type=checkbox] { margin-top: 3px; }
+    .task-main { flex: 1; min-width: 0; }
+    .task-title { font-weight: 600; font-size: 15px; }
+    .task-due { font-size: 12px; color: #3a6; margin-top: 2px; }
+    .task-due.overdue { color: #c44; }
+    .task-notes { font-size: 13px; color: #aaa; margin-top: 4px; white-space: pre-wrap; }
+    .task-actions { display: flex; gap: 4px; flex-shrink: 0; }
+    .task-actions button {
+      background: #2a3140; color: #ddd; border: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; cursor: pointer;
+    }
+    .task-actions button:hover { background: #3a4254; }
+    .task-actions .danger:hover { background: #622; }
+
+    .empty { color: #666; text-align: center; padding: 40px 20px; }
+
+    .modal {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8);
+      align-items: center; justify-content: center; z-index: 1000;
+    }
+    .modal-content {
+      background: #1a1f28; padding: 20px; border-radius: 10px; width: 100%; max-width: 420px;
+    }
+    .modal-content h2 { margin-top: 0; font-size: 18px; }
+    .modal-content input, .modal-content textarea {
+      width: 100%; background: #111; border: 1px solid #333; color: #eee;
+      padding: 8px; border-radius: 6px; margin-bottom: 10px; box-sizing: border-box;
+    }
+    .modal-actions { display: flex; gap: 8px; }
+    .modal-actions button { flex: 1; padding: 8px; border-radius: 6px; border: none; cursor: pointer; }
+    .modal-actions .save { background: #3a6; color: white; }
+    .modal-actions .cancel { background: #2a3140; color: #ddd; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Tasks</h1>
+    <input id="search" class="search" type="text" placeholder="Search tasks..." autocomplete="off">
+    <div class="stats" id="stats"></div>
+  </div>
+
+  <div class="container">
+    <div class="add-form">
+      <input id="new-title" type="text" placeholder="Task title..." />
+      <input id="new-due" type="date" />
+      <textarea id="new-notes" placeholder="Notes (optional)"></textarea>
+      <button id="add-btn">Add</button>
+    </div>
+
+    <div id="list"></div>
+    <div id="empty" class="empty" style="display:none">No tasks yet. Add one above.</div>
+  </div>
+
+  <!-- Edit Modal -->
+  <div id="edit-modal" class="modal">
+    <div class="modal-content">
+      <h2>Edit Task</h2>
+      <input id="edit-title" type="text" placeholder="Title" />
+      <input id="edit-due" type="date" />
+      <textarea id="edit-notes" placeholder="Notes" rows="3"></textarea>
+      <div class="modal-actions">
+        <button class="save" id="save-edit">Save</button>
+        <button class="cancel" id="cancel-edit">Cancel</button>
+        <button class="cancel" id="delete-edit" style="background:#622;color:#ddd;">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="main.js?cb=20260817"></script>
+</body>
+</html>

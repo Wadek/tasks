@@ -1,0 +1,7 @@
+﻿services:
+  tasks:
+    build: .
+    ports:
+      - "8088:8080"
+    volumes:
+      - ./data:/data
