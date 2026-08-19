@@ -19,7 +19,14 @@ from socketserver import ThreadingMixIn
 DATA_FILE = Path("/data/tasks.json")
 PORT = 8080
 
+# tasks_cache preserves JSON array order; tasks_by_id is O(1) lookup (Opt-001).
 tasks_cache = []
+tasks_by_id = {}
+
+def rebuild_index():
+    """Rebuild id -> task map from tasks_cache. Call after any list replace."""
+    global tasks_by_id
+    tasks_by_id = {t["id"]: t for t in tasks_cache if isinstance(t, dict) and "id" in t}
 
 def load_tasks():
     global tasks_cache
@@ -31,6 +38,9 @@ def load_tasks():
             tasks_cache = []
     else:
         tasks_cache = []
+    if not isinstance(tasks_cache, list):
+        tasks_cache = []
+    rebuild_index()
     # Ensure data dir
     DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
 
@@ -133,6 +143,7 @@ class TasksHandler(BaseHTTPRequestHandler):
                 "created": now_iso(),
             }
             tasks_cache.append(task)
+            tasks_by_id[task["id"]] = task
             save_tasks()
             self._send_headers(200)
             self.wfile.write(json.dumps(task).encode("utf-8"))
@@ -140,34 +151,34 @@ class TasksHandler(BaseHTTPRequestHandler):
 
         if path.startswith("/api/tasks/") and path.endswith("/toggle"):
             tid = path.split("/api/tasks/")[1].split("/toggle")[0]
-            for t in tasks_cache:
-                if t["id"] == tid:
-                    t["completed"] = not t.get("completed", False)
-                    save_tasks()
-                    self._send_headers(200)
-                    self.wfile.write(json.dumps(t).encode("utf-8"))
-                    return
-            self.send_error(404)
+            t = tasks_by_id.get(tid)
+            if t is None:
+                self.send_error(404)
+                return
+            t["completed"] = not t.get("completed", False)
+            save_tasks()
+            self._send_headers(200)
+            self.wfile.write(json.dumps(t).encode("utf-8"))
             return
 
         if path.startswith("/api/tasks/") and not path.endswith(("/toggle",)):
             # Update
             tid = path.split("/api/tasks/")[1]
-            for t in tasks_cache:
-                if t["id"] == tid:
-                    if "title" in data:
-                        t["title"] = (data["title"] or "").strip()
-                    if "due" in data:
-                        t["due"] = data["due"] or None
-                    if "notes" in data:
-                        t["notes"] = (data.get("notes") or "").strip() or None
-                    if "completed" in data:
-                        t["completed"] = bool(data["completed"])
-                    save_tasks()
-                    self._send_headers(200)
-                    self.wfile.write(json.dumps(t).encode("utf-8"))
-                    return
-            self.send_error(404)
+            t = tasks_by_id.get(tid)
+            if t is None:
+                self.send_error(404)
+                return
+            if "title" in data:
+                t["title"] = (data["title"] or "").strip()
+            if "due" in data:
+                t["due"] = data["due"] or None
+            if "notes" in data:
+                t["notes"] = (data.get("notes") or "").strip() or None
+            if "completed" in data:
+                t["completed"] = bool(data["completed"])
+            save_tasks()
+            self._send_headers(200)
+            self.wfile.write(json.dumps(t).encode("utf-8"))
             return
 
         self.send_error(405)
@@ -179,14 +190,14 @@ class TasksHandler(BaseHTTPRequestHandler):
         if path.startswith("/api/tasks/"):
             tid = path.split("/api/tasks/")[1]
             global tasks_cache
-            before = len(tasks_cache)
-            tasks_cache = [t for t in tasks_cache if t["id"] != tid]
-            if len(tasks_cache) < before:
-                save_tasks()
-                self._send_headers(200)
-                self.wfile.write(b'{"ok":true}')
+            if tid not in tasks_by_id:
+                self.send_error(404)
                 return
-            self.send_error(404)
+            tasks_cache = [t for t in tasks_cache if t.get("id") != tid]
+            tasks_by_id.pop(tid, None)
+            save_tasks()
+            self._send_headers(200)
+            self.wfile.write(b'{"ok":true}')
             return
 
         self.send_error(405)
