@@ -32,6 +32,19 @@ async function loadTasks() {
   render();
 }
 
+/** Opt-003: patch local list from mutation response (avoid full refetch). */
+function upsertTask(task) {
+  const i = allTasks.findIndex(t => t.id === task.id);
+  if (i >= 0) allTasks[i] = task;
+  else allTasks.push(task);
+  render();
+}
+
+function removeTask(id) {
+  allTasks = allTasks.filter(t => t.id !== id);
+  render();
+}
+
 function render() {
   const q = (searchInput.value || '').toLowerCase().trim();
   let filtered = allTasks;
@@ -121,20 +134,28 @@ async function addTask() {
     body: JSON.stringify({ title, due, notes }),
     credentials: 'same-origin'
   });
-  if (res.ok) {
-    document.getElementById('new-title').value = '';
-    document.getElementById('new-due').value = '';
-    document.getElementById('new-notes').value = '';
-    await loadTasks();
+  if (!res.ok) {
+    await loadTasks(); // fallback
+    return;
   }
+  const task = await res.json();
+  document.getElementById('new-title').value = '';
+  document.getElementById('new-due').value = '';
+  document.getElementById('new-notes').value = '';
+  upsertTask(task);
 }
 
 async function toggleTask(id) {
-  await fetch(withToken(`/api/tasks/${id}/toggle`), {
+  const res = await fetch(withToken(`/api/tasks/${id}/toggle`), {
     method: 'POST',
     credentials: 'same-origin'
   });
-  await loadTasks();
+  if (!res.ok) {
+    await loadTasks();
+    return;
+  }
+  const task = await res.json();
+  upsertTask(task);
 }
 
 function openEdit(task) {
@@ -151,25 +172,35 @@ async function saveEdit() {
   const due = document.getElementById('edit-due').value || null;
   const notes = document.getElementById('edit-notes').value.trim() || null;
 
-  await fetch(withToken(`/api/tasks/${currentEditId}`), {
+  const res = await fetch(withToken(`/api/tasks/${currentEditId}`), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ title, due, notes }),
     credentials: 'same-origin'
   });
   closeEdit();
-  await loadTasks();
+  if (!res.ok) {
+    await loadTasks();
+    return;
+  }
+  const task = await res.json();
+  upsertTask(task);
 }
 
 async function deleteEdit() {
   if (!currentEditId) return;
   if (!confirm('Delete this task?')) return;
-  await fetch(withToken(`/api/tasks/${currentEditId}`), {
+  const id = currentEditId;
+  const res = await fetch(withToken(`/api/tasks/${id}`), {
     method: 'DELETE',
     credentials: 'same-origin'
   });
   closeEdit();
-  await loadTasks();
+  if (!res.ok) {
+    await loadTasks();
+    return;
+  }
+  removeTask(id);
 }
 
 function closeEdit() {

@@ -26,13 +26,16 @@ See Frontier Ship [`english/O_VERIFY.md`](https://github.com/Wadek/frontier-ship
 ```text
 pip install -r requirements-dev.txt
 playwright install chromium
-pytest
+pytest -v --tb=short
 ```
 
 - **Layer A:** `tests/test_api_equivalence.py` — API + static bytes == disk  
 - **Layer B:** `tests/test_browser_smoke.py` — Playwright add/toggle/edit/delete/search  
+- **GitHub Actions:** `.github/workflows/verify.yml` runs the same suite on every PR (visible checks)
 
 Optional: `TASKS_E2E_BASE=https://tasks.wakalabs.net?token=…` for gateway browser runs.
+
+Always prefer **`-v`** so humans/agents see which tests passed.
 
 ## Frontier
 
