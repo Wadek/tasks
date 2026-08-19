@@ -1,7 +1,22 @@
-﻿services:
+name: tasks
+
+# Sibling app under D:\wakalabs (split out of waka-net).
+# Joins external docker network waka-net for gateway routing.
+
+services:
   tasks:
-    build: .
-    ports:
-      - "8088:8080"
+    image: python:3.12-alpine
+    container_name: tasks
+    restart: unless-stopped
     volumes:
       - ./data:/data
+      - ./app:/app:ro
+      - D:/wakalabs/waka-net/shared:/shared:ro
+    working_dir: /app
+    command: python server.py
+    networks:
+      - waka-net
+
+networks:
+  waka-net:
+    external: true
