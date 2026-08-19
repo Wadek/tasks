@@ -4,3 +4,8 @@ __pycache__/
 *.pyc
 .env
 .frontier/
+
+.pytest_cache/
+__pycache__/
+*.pyc
+
