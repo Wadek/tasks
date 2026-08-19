@@ -16,17 +16,30 @@ from pathlib import Path
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from socketserver import ThreadingMixIn
 
-DATA_FILE = Path("/data/tasks.json")
-PORT = 8080
+DATA_FILE = Path(os.environ.get("TASKS_DATA_FILE", "/data/tasks.json"))
+APP_DIR = Path(os.environ.get("TASKS_APP_DIR", "/app"))
+PORT = int(os.environ.get("TASKS_PORT", "8080"))
 
 # tasks_cache preserves JSON array order; tasks_by_id is O(1) lookup (Opt-001).
 tasks_cache = []
 tasks_by_id = {}
 
+# Opt-002: immutable UI assets cached at startup (bytes identical to disk).
+STATIC_CACHE = {}
+
 def rebuild_index():
     """Rebuild id -> task map from tasks_cache. Call after any list replace."""
     global tasks_by_id
     tasks_by_id = {t["id"]: t for t in tasks_cache if isinstance(t, dict) and "id" in t}
+
+def load_static_cache():
+    """Load index.html / main.js into memory. Behavior: same bytes as files on disk."""
+    global STATIC_CACHE
+    STATIC_CACHE = {}
+    for name in ("index.html", "main.js"):
+        p = APP_DIR / name
+        if p.is_file():
+            STATIC_CACHE[name] = p.read_bytes()
 
 def load_tasks():
     global tasks_cache
@@ -103,14 +116,17 @@ class TasksHandler(BaseHTTPRequestHandler):
             return
 
         if path.startswith("/static/") or path == "/main.js":
-            candidate = Path("/app") / path.lstrip("/")
-            if candidate.exists():
+            rel = path.lstrip("/")
+            if path == "/main.js":
+                rel = "main.js"
+            candidate = APP_DIR / rel
+            if candidate.exists() or rel in STATIC_CACHE:
                 ctype = "application/octet-stream"
-                if candidate.suffix == ".js":
+                if candidate.suffix == ".js" or rel.endswith(".js"):
                     ctype = "text/javascript; charset=utf-8"
-                elif candidate.suffix == ".css":
+                elif candidate.suffix == ".css" or rel.endswith(".css"):
                     ctype = "text/css; charset=utf-8"
-                self.serve_path(candidate, ctype)
+                self.serve_path(candidate, ctype, cache_key=rel)
                 return
 
         self.send_error(404)
@@ -203,16 +219,25 @@ class TasksHandler(BaseHTTPRequestHandler):
         self.send_error(405)
 
     def serve_static(self, name, ctype):
-        p = Path("/app") / name
-        if p.exists():
+        p = APP_DIR / name
+        data = STATIC_CACHE.get(name)
+        if data is None and p.exists():
             data = p.read_bytes()
+        if data is not None:
             self._send_headers(200, ctype, len(data), no_cache=True)
             self.wfile.write(data)
         else:
             self.send_error(404)
 
-    def serve_path(self, p, ctype="application/octet-stream"):
-        data = p.read_bytes()
+    def serve_path(self, p, ctype="application/octet-stream", cache_key=None):
+        data = None
+        if cache_key and cache_key in STATIC_CACHE:
+            data = STATIC_CACHE[cache_key]
+        elif p.exists():
+            data = p.read_bytes()
+        if data is None:
+            self.send_error(404)
+            return
         self._send_headers(200, ctype, len(data))
         self.wfile.write(data)
 
@@ -222,7 +247,8 @@ class ThreadedServer(ThreadingMixIn, HTTPServer):
 if __name__ == "__main__":
     DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
     load_tasks()
-    print(f"tasks server ready — {len(tasks_cache)} tasks")
+    load_static_cache()
+    print(f"tasks server ready — {len(tasks_cache)} tasks; static cached={list(STATIC_CACHE)}")
     httpd = ThreadedServer(("", PORT), TasksHandler)
     print(f"listening on :{PORT}")
     httpd.serve_forever()
