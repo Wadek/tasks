@@ -1,0 +1,7 @@
+# Copy to <repo>/.github/workflows/wakalabs-verify.yml (via a PR).
+name: wakalabs-verify
+on: [push, pull_request]
+permissions: { contents: read, pull-requests: read }
+jobs:
+  verify:
+    uses: Wadek/wakalabs-ops/.github/workflows/verify.yml@main
